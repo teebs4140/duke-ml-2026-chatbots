@@ -62,6 +62,7 @@ if (!ENDPOINT || !API_KEY) {
 const client = new OpenAI({
   baseURL: `${ENDPOINT.replace(/\/+$/, "")}/openai/v1/`,
   apiKey: API_KEY,
+  maxRetries: 10,
 });
 
 // --- NEW IN LEVEL 2 ---

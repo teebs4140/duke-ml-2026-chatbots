@@ -46,6 +46,7 @@ if not ENDPOINT or not API_KEY:
 client = OpenAI(
     base_url=f"{ENDPOINT.rstrip('/')}/openai/v1/",
     api_key=API_KEY,
+    max_retries=10,
 )
 
 # --- Step 5: Print a welcome banner ---

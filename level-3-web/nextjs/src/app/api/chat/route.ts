@@ -319,6 +319,7 @@ export async function POST(request: NextRequest) {
     const client = new OpenAI({
       baseURL: `${endpoint.replace(/\/+$/, "")}/openai/v1/`,
       apiKey: apiKey,
+      maxRetries: 10,
     });
 
     // -------------------------------------------------------
