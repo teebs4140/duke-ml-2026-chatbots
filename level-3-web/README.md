@@ -1,0 +1,171 @@
+# Level 3: Web UI Chat
+
+Build a browser-based chat application with streaming responses, file uploads, and a settings panel. Two implementations:
+
+- **Next.js** — React + shadcn/ui (modern full-stack framework)
+- **Flask** — Python + vanilla JavaScript (see the raw DOM manipulation)
+
+## What You'll Learn
+
+- **HTTP APIs**: How a browser talks to a server via POST requests
+- **Server-Sent Events (SSE)**: Streaming AI responses token-by-token to the browser
+- **Client-server architecture**: Frontend sends requests → backend calls Azure → streams back to frontend
+- **React state management** (Next.js) vs **vanilla DOM manipulation** (Flask)
+- **FileReader API**: Converting files to base64 in the browser
+
+## How to Run
+
+### Option A: Next.js (TypeScript + React)
+
+```bash
+cd level-3-web/nextjs
+
+# Next.js reads env vars from .env.local (not .env)
+# Copy the project root .env into this directory:
+cp ../../.env .env.local
+
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Option B: Flask (Python + vanilla JS)
+
+```bash
+# Make sure your virtual environment is activated first:
+source .venv/bin/activate    # On Windows: .venv\Scripts\activate
+
+cd level-3-web/flask
+python app.py
+```
+
+> **Note:** If you haven't created the virtual environment yet, see the [Quick Setup](../README.md#quick-setup) in the root README.
+
+Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+---
+
+## Running in a Jupyter Container
+
+JupyterHub doesn't let you access `localhost` ports directly from your browser. Instead, you access them through JupyterHub's built-in proxy.
+
+### Flask (port 5000)
+
+1. Start the server from a JupyterHub terminal:
+   ```bash
+   cd duke-ml-chatbot/level-3-web/flask
+   python app.py
+   ```
+
+2. Open this URL in your browser (replace `<your-jupyter-url>` with your JupyterHub address):
+   ```
+   https://<your-jupyter-url>/proxy/5000/
+   ```
+
+   For example, if your JupyterHub is at `https://jupyter.example.com/user/jsmith/`, the URL would be:
+   ```
+   https://jupyter.example.com/user/jsmith/proxy/5000/
+   ```
+
+### Next.js (port 3000)
+
+1. Make sure Node.js is installed:
+   ```bash
+   conda install -y nodejs
+   ```
+
+2. Start the dev server:
+   ```bash
+   cd duke-ml-chatbot/level-3-web/nextjs
+   npm install
+   npm run dev
+   ```
+
+3. Access via the proxy:
+   ```
+   https://<your-jupyter-url>/proxy/3000/
+   ```
+
+### Troubleshooting Jupyter Proxy
+
+- **Blank page?** Make sure the server is actually running in the terminal. Check for error messages.
+- **Connection refused?** Wait a few seconds for the server to start, then refresh.
+- **API calls failing?** The proxy should forward all requests. If `/api/chat` fails, check that your `.env` file has valid credentials.
+
+---
+
+## Architecture
+
+Both versions follow the same pattern:
+
+```
+Browser                    Server                    Azure AI Foundry
+  │                          │                            │
+  │  POST /api/chat          │                            │
+  │  {message, file, ...}    │                            │
+  │ ─────────────────────>   │                            │
+  │                          │  responses.create(stream)  │
+  │                          │  ──────────────────────>   │
+  │                          │                            │
+  │   SSE: delta "Hello"     │   <── stream chunk         │
+  │ <─────────────────────   │                            │
+  │   SSE: delta " world"    │   <── stream chunk         │
+  │ <─────────────────────   │                            │
+  │   SSE: done + responseId │   <── stream complete      │
+  │ <─────────────────────   │                            │
+```
+
+### Key Files
+
+**Next.js:**
+| File | Purpose |
+|------|---------|
+| `src/app/api/chat/route.ts` | API route — calls Azure, returns SSE stream |
+| `src/hooks/use-chat.ts` | React hook — manages messages, streaming, conversation chaining |
+| `src/components/chat-interface.tsx` | Main UI orchestrator |
+| `src/components/message-bubble.tsx` | Renders messages with Markdown |
+| `src/components/settings-panel.tsx` | Instructions, model, reasoning controls |
+
+**Flask:**
+| File | Purpose |
+|------|---------|
+| `app.py` | Server — routes + SSE streaming |
+| `static/app.js` | Vanilla JS — fetch, SSE parsing, DOM updates |
+| `templates/index.html` | HTML structure |
+| `static/style.css` | Styling |
+
+## Code Walkthrough
+
+### 1. The API endpoint receives a chat request
+
+The browser sends a POST with the message, any attached file (as base64), the previous response ID (for conversation continuity), and settings.
+
+### 2. The server calls Azure AI Foundry with `stream: true`
+
+Same `client.responses.create()` pattern as Levels 1 and 2, but with `stream: true`. This returns an event stream instead of waiting for the full response.
+
+### 3. The server forwards chunks as SSE
+
+As each text chunk arrives from Azure, the server immediately sends it to the browser as a Server-Sent Event:
+```
+data: {"type":"delta","text":"Hello"}
+data: {"type":"delta","text":" world"}
+data: {"type":"done","responseId":"resp_abc123"}
+```
+
+### 4. The browser renders tokens as they arrive
+
+The frontend reads the SSE stream and appends each text delta to the assistant's message in real time — creating the "typing" effect.
+
+### 5. The response ID is stored for the next turn
+
+Just like in Levels 1 and 2, `previousResponseId` chains the conversation. The browser stores it and sends it with the next message.
+
+## Try This!
+
+1. **Change the system instructions** via the settings panel and see how the chatbot's personality changes
+2. **Upload an image** (PNG/JPG) and ask the AI to describe it
+3. **Compare the implementations**: Read `app.js` (vanilla JS) side-by-side with `use-chat.ts` (React) — same logic, different patterns
+4. **Add a feature**: Try adding a "copy message" button to each message bubble
+5. **Change the theme**: Modify the CSS colors to match your own branding

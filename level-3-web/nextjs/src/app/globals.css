@@ -1,0 +1,105 @@
+/* =============================================================
+ * Global Styles - Duke ML Chatbot (Level 3 - Next.js)
+ * =============================================================
+ * Uses Tailwind CSS v4 with the new @import syntax.
+ * CSS custom properties provide a theming layer compatible
+ * with shadcn/ui conventions so components can reference
+ * semantic color tokens like var(--primary).
+ * ============================================================= */
+
+@import "tailwindcss";
+
+/* ---------------------------------------------------------
+ * Theme Bridge
+ * ---------------------------------------------------------
+ * Maps CSS custom properties to Tailwind's @theme system
+ * so we can write classes like `bg-primary` or `text-muted-foreground`
+ * and have them resolve to our custom property values.
+ * --------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius: var(--radius);
+}
+
+/* ---------------------------------------------------------
+ * Light Theme (Default)
+ * ---------------------------------------------------------
+ * Duke Blue (#003366) is the official Duke University color.
+ * We use a slightly lighter variant (#1a4b8c) for better
+ * contrast and accessibility on white backgrounds.
+ * --------------------------------------------------------- */
+:root {
+  /* Page background & text */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+
+  /* Card surfaces */
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+
+  /* Primary action color - Duke Blue */
+  --primary: #003366;
+  --primary-foreground: #ffffff;
+
+  /* Secondary / subtle surfaces */
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1a1a1a;
+
+  /* Muted text and backgrounds */
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+
+  /* Borders and form inputs */
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+
+  /* Focus ring color */
+  --ring: #003366;
+
+  /* Border radius token */
+  --radius: 0.5rem;
+}
+
+/* ---------------------------------------------------------
+ * Base Styles
+ * --------------------------------------------------------- */
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Smooth scrolling for the whole page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for a polished feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}

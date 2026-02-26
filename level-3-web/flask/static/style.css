@@ -1,0 +1,429 @@
+/* =====================================================================
+   Level 3: Flask Web Chat - Stylesheet
+   =====================================================================
+   Color palette:
+     - Duke blue primary:  #003366
+     - Duke blue lighter:  #1a4b8c
+     - Duke blue accent:   #0056b3
+     - User message bg:    #003366  (Duke blue)
+     - Assistant msg bg:   #f0f2f5  (light gray)
+     - Page background:    #f7f8fa
+     - White:              #ffffff
+   ===================================================================== */
+
+/* --- Reset & Base Styles --- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: #f7f8fa;
+}
+
+/* --- Full-Height App Layout --- */
+/* The app is a vertical flex column: header, messages, input area */
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #ffffff;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Header Bar --- */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: #003366;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.header-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.header-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* --- Message Area --- */
+/* This is the scrollable area where chat messages appear */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+}
+
+/* --- Individual Message Bubble --- */
+.message {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.55;
+    font-size: 14.5px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* User messages: Duke blue background, right-aligned */
+.message.user {
+    align-self: flex-end;
+    background: #003366;
+    color: #ffffff;
+    border-bottom-right-radius: 4px;
+}
+
+/* Assistant messages: light gray background, left-aligned */
+.message.assistant {
+    align-self: flex-start;
+    background: #f0f2f5;
+    color: #1a1a1a;
+    border-bottom-left-radius: 4px;
+}
+
+/* Error messages */
+.message.error {
+    align-self: center;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-size: 13.5px;
+    max-width: 90%;
+}
+
+/* --- File Attachment Preview (shown inside a user message) --- */
+.file-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.file-preview .file-icon {
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+.file-preview .file-name {
+    opacity: 0.9;
+}
+
+/* --- Typing / Loading Indicator --- */
+.typing-indicator {
+    align-self: flex-start;
+    padding: 12px 20px;
+    background: #f0f2f5;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.typing-indicator span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #9ca3af;
+    border-radius: 50%;
+    animation: bounce 1.2s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30%           { transform: translateY(-6px); }
+}
+
+/* --- Input Area (fixed at the bottom) --- */
+.input-area {
+    flex-shrink: 0;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+/* File preview bar above the input (when a file is attached) */
+.input-file-preview {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #3730a3;
+}
+
+.input-file-preview.visible {
+    display: flex;
+}
+
+.input-file-preview .remove-file {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #6366f1;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+/* The row with the text input + buttons */
+.input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+/* The textarea for user input */
+.input-row textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 14.5px;
+    line-height: 1.45;
+    max-height: 150px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.input-row textarea:focus {
+    border-color: #0056b3;
+    box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.12);
+}
+
+/* Attach file button */
+.attach-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 18px;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+    height: 42px;
+}
+
+.attach-btn:hover {
+    border-color: #0056b3;
+    color: #0056b3;
+}
+
+/* Send button */
+.send-btn {
+    background: #003366;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 14.5px;
+    font-weight: 500;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    height: 42px;
+}
+
+.send-btn:hover {
+    background: #1a4b8c;
+}
+
+.send-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* --- Settings Panel (slides out from the right) --- */
+.settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+.settings-overlay.open {
+    display: block;
+}
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: -380px;
+    width: 360px;
+    max-width: 90vw;
+    height: 100%;
+    background: #ffffff;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+    z-index: 101;
+    padding: 24px;
+    overflow-y: auto;
+    transition: right 0.25s ease;
+}
+
+.settings-panel.open {
+    right: 0;
+}
+
+.settings-panel h2 {
+    font-size: 17px;
+    margin-bottom: 20px;
+    color: #003366;
+}
+
+.settings-panel label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+    margin-top: 16px;
+}
+
+.settings-panel textarea,
+.settings-panel input,
+.settings-panel select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.settings-panel textarea:focus,
+.settings-panel input:focus,
+.settings-panel select:focus {
+    border-color: #0056b3;
+    box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.12);
+}
+
+.settings-panel textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.close-settings {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+/* --- Welcome Message (centered, shown when conversation is empty) --- */
+.welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #6b7280;
+    padding: 40px;
+}
+
+.welcome h2 {
+    font-size: 22px;
+    color: #003366;
+    margin-bottom: 8px;
+}
+
+.welcome p {
+    font-size: 14.5px;
+    max-width: 400px;
+}
+
+/* --- Token Usage Status Bar --- */
+.usage-bar {
+    display: none;
+    text-align: center;
+    font-size: 12px;
+    color: #6b7280;
+    padding: 4px 16px;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* --- Responsive: smaller screens --- */
+@media (max-width: 640px) {
+    .app {
+        max-width: 100%;
+        box-shadow: none;
+    }
+
+    .messages {
+        padding: 16px;
+    }
+
+    .message {
+        max-width: 90%;
+    }
+
+    .input-area {
+        padding: 12px 16px;
+    }
+}

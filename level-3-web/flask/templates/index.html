@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level 3: Web Chat</title>
+
+    <!-- Our stylesheet (static/style.css) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- =================================================================
+     The entire app is a single-page layout with three sections:
+       1. Header  - title bar with settings and clear buttons
+       2. Messages - scrollable chat area
+       3. Input    - text input, file attach, and send button
+     ================================================================= -->
+<div class="app">
+
+    <!-- ==================== Header ==================== -->
+    <div class="header">
+        <h1>Duke ML Chatbot</h1>
+        <div class="header-actions">
+            <button class="header-btn" id="clear-btn" title="Clear conversation">Clear</button>
+            <button class="header-btn" id="settings-btn" title="Open settings">Settings</button>
+        </div>
+    </div>
+
+    <!-- ==================== Message Area ==================== -->
+    <!-- Messages are appended here dynamically by app.js -->
+    <div class="messages" id="messages">
+
+        <!-- Welcome message (shown when chat is empty) -->
+        <div class="welcome" id="welcome-message">
+            <h2>Welcome to the Duke ML Chatbot</h2>
+            <p>Type a message below to start chatting. You can also attach
+               files and adjust settings using the buttons above.</p>
+        </div>
+
+    </div>
+
+    <!-- ==================== Input Area ==================== -->
+    <div class="input-area">
+
+        <!-- File preview bar (hidden until a file is attached) -->
+        <div class="input-file-preview" id="input-file-preview">
+            <span>&#128206;</span>
+            <span id="file-name-display"></span>
+            <button class="remove-file" id="remove-file-btn" title="Remove file">&times;</button>
+        </div>
+
+        <!-- Input row: textarea + attach + send -->
+        <div class="input-row">
+            <textarea
+                id="message-input"
+                placeholder="Type a message... (Shift+Enter for new line)"
+                rows="1"
+            ></textarea>
+
+            <!-- Hidden file input (triggered by the attach button) -->
+            <input type="file" id="file-input" hidden>
+
+            <button class="attach-btn" id="attach-btn" title="Attach a file">&#128206;</button>
+            <button class="send-btn" id="send-btn">Send</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- ==================== Settings Panel (slide-out) ==================== -->
+<!-- Overlay dims the background when settings are open -->
+<div class="settings-overlay" id="settings-overlay"></div>
+
+<!-- The settings panel slides in from the right -->
+<div class="settings-panel" id="settings-panel">
+    <button class="close-settings" id="close-settings" title="Close settings">&times;</button>
+    <h2>Settings</h2>
+
+    <!-- System Instructions -->
+    <label for="settings-instructions">System Instructions</label>
+    <textarea
+        id="settings-instructions"
+        rows="5"
+    >{{ default_instructions }}</textarea>
+
+    <!-- Model Name -->
+    <label for="settings-model">Model Name</label>
+    <input
+        type="text"
+        id="settings-model"
+        value="{{ default_model }}"
+    >
+
+    <!-- Reasoning Effort -->
+    <label for="settings-reasoning">Reasoning Effort</label>
+    <select id="settings-reasoning">
+        <option value="low"    {{ 'selected' if default_effort == 'low' }}>Low (faster, cheaper)</option>
+        <option value="medium" {{ 'selected' if default_effort == 'medium' }}>Medium</option>
+        <option value="high"   {{ 'selected' if default_effort == 'high' }}>High (more thorough)</option>
+    </select>
+</div>
+
+<!-- Our JavaScript (static/app.js) -- loaded at the end so the DOM is ready -->
+<script>
+    window.CHAT_API_TOKEN = {{ chat_api_token|tojson }};
+</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</body>
+</html>

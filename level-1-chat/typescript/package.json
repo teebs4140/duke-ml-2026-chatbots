@@ -1,0 +1,16 @@
+{
+  "name": "level-1-chat",
+  "version": "1.0.0",
+  "description": "Level 1: Terminal chatbot using Azure AI Foundry",
+  "scripts": {
+    "start": "tsx chat.ts"
+  },
+  "dependencies": {
+    "openai": "^5.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
