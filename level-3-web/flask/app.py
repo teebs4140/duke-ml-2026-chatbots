@@ -360,4 +360,4 @@ if __name__ == "__main__":
     print(f"  Open http://localhost:5000 in your browser.\n")
 
     debug_mode = os.getenv("FLASK_DEBUG", "").lower() in {"1", "true", "yes", "on"}
-    app.run(debug=debug_mode, port=5000)
+    app.run(debug=debug_mode, host="0.0.0.0", port=5000)
