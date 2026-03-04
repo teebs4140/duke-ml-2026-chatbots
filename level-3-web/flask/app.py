@@ -33,24 +33,13 @@ Architecture:
 # dotenv       : Loads secrets from .env so we don't hard-code them
 # json         : Serialize Python dicts to JSON for SSE payloads
 import base64
-import binascii
 import json
 import os
-import time
 from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, render_template, request, stream_with_context
 from openai import OpenAI
-
-
-def _read_positive_int(value: str | None, fallback: int) -> int:
-    """Read a positive integer from env vars with safe fallback."""
-    try:
-        parsed = int(value) if value is not None else fallback
-    except (TypeError, ValueError):
-        return fallback
-    return parsed if parsed > 0 else fallback
 
 
 def _parse_data_field(data: str) -> tuple[str, str | None]:
@@ -76,16 +65,6 @@ def _estimate_base64_decoded_bytes(base64_data: str) -> int:
     return max(0, (len(sanitized) * 3) // 4 - padding)
 
 
-def _client_ip() -> str:
-    """Best-effort client IP extraction for simple rate limiting."""
-    forwarded_for = request.headers.get("X-Forwarded-For", "")
-    if forwarded_for:
-        first = forwarded_for.split(",", 1)[0].strip()
-        if first:
-            return first
-    return request.headers.get("X-Real-IP", "").strip() or "unknown"
-
-
 # --- Step 2: Load environment variables ---
 # The .env file lives at the project root (three levels up from this script).
 # It contains your API key, endpoint URL, model name, and other settings.
@@ -93,8 +72,8 @@ env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(env_path)
 
 # Read configuration from environment variables.
-ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+ENDPOINT = (os.getenv("AZURE_OPENAI_ENDPOINT") or "").strip()
+API_KEY = (os.getenv("AZURE_OPENAI_API_KEY") or "").strip()
 MODEL = os.getenv("MODEL_NAME", "gpt-5.2")
 REASONING_EFFORT = os.getenv("REASONING_EFFORT", "low")
 INSTRUCTIONS = os.getenv(
@@ -102,88 +81,24 @@ INSTRUCTIONS = os.getenv(
     "You are a helpful assistant. Be concise and friendly.",
 )
 
-MAX_FILE_SIZE_BYTES = _read_positive_int(os.getenv("MAX_FILE_SIZE_BYTES"), 20 * 1024 * 1024)
-# Request size needs to be larger than MAX_FILE_SIZE_BYTES because base64 expands data.
-MAX_REQUEST_SIZE_BYTES = _read_positive_int(
-    os.getenv("MAX_REQUEST_SIZE_BYTES"), 30 * 1024 * 1024
-)
-
-CHAT_API_TOKEN = (os.getenv("CHAT_API_TOKEN") or "").strip()
-CHAT_RATE_LIMIT_MAX = _read_positive_int(os.getenv("CHAT_RATE_LIMIT_MAX"), 30)
-CHAT_RATE_LIMIT_WINDOW_MS = _read_positive_int(
-    os.getenv("CHAT_RATE_LIMIT_WINDOW_MS"), 60_000
-)
-
+MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
 VALID_REASONING_EFFORTS = {"low", "medium", "high"}
 DEFAULT_FILE_ONLY_MESSAGE = "Please analyze the attached file."
 
-# In-memory rate limiter store keyed by client IP.
-_rate_limit_store: dict[str, tuple[int, float]] = {}
-
-# Lazy-initialized client so missing env vars don't crash on import.
-_client: OpenAI | None = None
-
-
-def _require_api_auth() -> Response | None:
-    """Optional bearer-style shared token check for demos."""
-    if not CHAT_API_TOKEN:
-        return None
-
-    provided_token = request.headers.get("X-Chat-Token", "")
-    if provided_token != CHAT_API_TOKEN:
-        return jsonify({"error": "Unauthorized"}), 401
-    return None
-
-
-def _is_rate_limited(client_key: str) -> bool:
-    """Simple fixed-window in-memory limiter."""
-    now = time.time()
-    existing = _rate_limit_store.get(client_key)
-
-    window_seconds = CHAT_RATE_LIMIT_WINDOW_MS / 1000
-    if existing is None or now - existing[1] >= window_seconds:
-        _rate_limit_store[client_key] = (1, now)
-        return False
-
-    new_count = existing[0] + 1
-    _rate_limit_store[client_key] = (new_count, existing[1])
-    return new_count > CHAT_RATE_LIMIT_MAX
-
-
-def _get_client() -> OpenAI:
-    """Create the OpenAI client lazily once configuration is known."""
-    global _client
-    if _client is None:
-        if not ENDPOINT or not API_KEY:
-            raise RuntimeError(
-                "Server configuration error: AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must be set."
-            )
-        _client = OpenAI(
-            base_url=f"{ENDPOINT.rstrip('/')}/openai/v1/",
-            api_key=API_KEY,
-            max_retries=10,
-        )
-    return _client
+client = (
+    OpenAI(
+        base_url=ENDPOINT,
+        api_key=API_KEY,
+        max_retries=10,
+        default_query={"api-version": "2025-04-01-preview"},
+    )
+    if ENDPOINT and API_KEY
+    else None
+)
 
 
 # --- Step 3: Create the Flask app ---
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_SIZE_BYTES
-
-
-@app.errorhandler(413)
-def request_too_large(_error):
-    return (
-        jsonify(
-            {
-                "error": (
-                    f"Request too large. Maximum request size is "
-                    f"{MAX_REQUEST_SIZE_BYTES // (1024 * 1024)} MB."
-                )
-            }
-        ),
-        413,
-    )
 
 
 # =====================================================================
@@ -203,7 +118,6 @@ def index():
         default_model=MODEL,
         default_effort=REASONING_EFFORT,
         default_instructions=INSTRUCTIONS,
-        chat_api_token=CHAT_API_TOKEN,
     )
 
 
@@ -225,15 +139,6 @@ def chat():
       data: {"type": "delta", "text": "partial text"}
       data: {"type": "done",  "responseId": "resp_xyz789"}
     """
-    # Optional API token check.
-    auth_error = _require_api_auth()
-    if auth_error is not None:
-        return auth_error
-
-    if CHAT_RATE_LIMIT_MAX > 0 and CHAT_RATE_LIMIT_WINDOW_MS > 0:
-        if _is_rate_limited(_client_ip()):
-            return jsonify({"error": "Too many requests. Please try again shortly."}), 429
-
     # --- Parse and validate the incoming JSON request ---
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -353,7 +258,7 @@ def chat():
                 text_content = base64.b64decode(parsed_file["base64Data"]).decode(
                     "utf-8", errors="replace"
                 )
-            except (binascii.Error, ValueError):
+            except ValueError:
                 return jsonify({"error": "Attached file is not valid base64 data"}), 400
 
             api_input = (
@@ -383,7 +288,12 @@ def chat():
             if previous_response_id:
                 create_params["previous_response_id"] = previous_response_id
 
-            stream = _get_client().responses.create(**create_params)
+            if client is None:
+                raise RuntimeError(
+                    "Server configuration error: AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must be set."
+                )
+
+            stream = client.responses.create(**create_params)
 
             # Iterate over the stream and forward relevant events to the browser
             for event in stream:

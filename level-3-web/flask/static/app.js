@@ -43,7 +43,6 @@ const welcomeMessage    = document.getElementById("welcome-message");
 const instructionsInput   = document.getElementById("settings-instructions");
 const modelInput          = document.getElementById("settings-model");
 const reasoningEffortSel  = document.getElementById("settings-reasoning");
-const chatApiToken        = window.CHAT_API_TOKEN || "";
 
 // =====================================================================
 // Step 2: Application state
@@ -56,6 +55,52 @@ let attachedFile       = null;  // { name: "file.pdf", data: "data:...;base64,..
 let isStreaming        = false;  // Prevents sending while a response is in progress
 let activeAbortController = null;
 let streamGeneration = 0;
+
+function parseSseEventBlock(eventBlock) {
+    const dataLines = eventBlock
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart());
+
+    if (dataLines.length === 0) return null;
+
+    try {
+        return JSON.parse(dataLines.join("\n"));
+    } catch {
+        return null;
+    }
+}
+
+function parseSseBlocks(rawText) {
+    return rawText
+        .split("\n\n")
+        .map((event) => event.trim())
+        .filter(Boolean)
+        .map(parseSseEventBlock)
+        .filter(Boolean);
+}
+
+function handleSseEvent(event, assistantEl) {
+    if (event.type === "delta") {
+        assistantEl.textContent += event.text;
+        scrollToBottom();
+        return;
+    }
+
+    if (event.type === "usage") {
+        updateUsageDisplay(event.inputTokens, event.outputTokens, event.totalTokens);
+        return;
+    }
+
+    if (event.type === "done" && event.responseId) {
+        previousResponseId = event.responseId;
+        return;
+    }
+
+    if (event.type === "error") {
+        throw new Error(event.message || event.text || "Streaming error");
+    }
+}
 
 // =====================================================================
 // Step 3: sendMessage() -- the core function
@@ -123,7 +168,6 @@ async function sendMessage() {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(chatApiToken ? { "X-Chat-Token": chatApiToken } : {}),
             },
             body: JSON.stringify(payload),
             signal: controller.signal,
@@ -161,29 +205,9 @@ async function sendMessage() {
             const { done, value } = await reader.read();
             if (done) {
                 buffer += decoder.decode();
-                const trailingEvents = buffer.split("\n\n").map((event) => event.trim()).filter(Boolean);
-                for (const eventBlock of trailingEvents) {
+                for (const event of parseSseBlocks(buffer)) {
                     if (generationId !== streamGeneration) continue;
-                    const dataLines = eventBlock
-                        .split("\n")
-                        .filter((line) => line.startsWith("data:"))
-                        .map((line) => line.slice(5).trimStart());
-                    if (dataLines.length === 0) continue;
-
-                    let event;
-                    try {
-                        event = JSON.parse(dataLines.join("\n"));
-                    } catch {
-                        continue;
-                    }
-
-                    if (event.type === "usage") {
-                        updateUsageDisplay(event.inputTokens, event.outputTokens, event.totalTokens);
-                    } else if (event.type === "done" && event.responseId) {
-                        previousResponseId = event.responseId;
-                    } else if (event.type === "error") {
-                        throw new Error(event.message || event.text || "Streaming error");
-                    }
+                    handleSseEvent(event, assistantEl);
                 }
                 break;
             }
@@ -192,40 +216,14 @@ async function sendMessage() {
             buffer += decoder.decode(value, { stream: true });
 
             // SSE events are separated by blank lines (\n\n)
-            const eventBlocks = buffer.split("\n\n");
-            buffer = eventBlocks.pop() || "";
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop() || "";
 
-            for (const eventBlock of eventBlocks) {
+            for (const eventBlock of parts) {
                 if (generationId !== streamGeneration) continue;
-
-                const dataLines = eventBlock
-                    .split("\n")
-                    .filter((line) => line.startsWith("data:"))
-                    .map((line) => line.slice(5).trimStart());
-                if (dataLines.length === 0) continue;
-
-                let event;
-                try {
-                    event = JSON.parse(dataLines.join("\n"));
-                } catch {
-                    continue;  // Skip malformed event blocks
-                }
-
-                // Handle the different event types from our Flask backend
-                if (event.type === "delta") {
-                    // A new chunk of text -- append it to the assistant message
-                    assistantEl.textContent += event.text;
-                    scrollToBottom();
-                } else if (event.type === "usage") {
-                    // Token usage stats -- display in the status bar
-                    updateUsageDisplay(event.inputTokens, event.outputTokens, event.totalTokens);
-                } else if (event.type === "done") {
-                    // The response is complete -- save the ID for next turn
-                    previousResponseId = event.responseId;
-                } else if (event.type === "error") {
-                    // The server encountered an error
-                    throw new Error(event.message || event.text || "Streaming error");
-                }
+                const event = parseSseEventBlock(eventBlock);
+                if (!event) continue;
+                handleSseEvent(event, assistantEl);
             }
         }
     } catch (error) {

@@ -63,12 +63,13 @@ if not ENDPOINT or not API_KEY:
 # ========================================
 # Create the OpenAI Client (same as Level 1)
 # ========================================
-# We use the generic OpenAI client pointed at Azure's v1-compatible endpoint.
+# We use the generic OpenAI client pointed at the Azure endpoint.
 # This works with all three Azure endpoint formats.
 client = OpenAI(
-    base_url=f"{ENDPOINT.rstrip('/')}/openai/v1/",
+    base_url=ENDPOINT,
     api_key=API_KEY,
     max_retries=10,
+    default_query={"api-version": "2025-04-01-preview"},
 )
 
 

@@ -50,12 +50,13 @@ if (!ENDPOINT || !API_KEY) {
 
 // --- Step 4: Create the OpenAI client ---
 // Azure AI Foundry exposes an OpenAI-compatible API. We point the standard
-// OpenAI client at it by setting baseURL to your endpoint + "/openai/v1/".
+// OpenAI client at it by setting baseURL to your endpoint.
 // This means you can use the exact same SDK you'd use with OpenAI directly.
 const client = new OpenAI({
-    baseURL: `${ENDPOINT.replace(/\/+$/, "")}/openai/v1/`,
+    baseURL: ENDPOINT,
     apiKey: API_KEY,
     maxRetries: 10,
+    defaultQuery: { "api-version": "2025-04-01-preview" },
 });
 
 // --- Step 5: Print a welcome banner ---

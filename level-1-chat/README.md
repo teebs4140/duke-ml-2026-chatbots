@@ -73,11 +73,11 @@ Before doing anything, we check that the required variables are set. Better to f
 
 ### Step 4 -- Create the Client
 
-The key insight: Azure AI Foundry is **OpenAI-compatible**. We create a standard `OpenAI` client and set `base_url` to `{your-endpoint}/openai/v1/`. That's it.
+The key insight: Azure AI Foundry is **OpenAI-compatible**. We create a standard `OpenAI` client and set `base_url` to your endpoint. That's it.
 
 ```python
 client = OpenAI(
-    base_url=f"{ENDPOINT.rstrip('/')}/openai/v1/",
+    base_url=ENDPOINT,
     api_key=API_KEY,
 )
 ```

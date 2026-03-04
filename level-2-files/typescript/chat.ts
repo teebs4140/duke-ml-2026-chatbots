@@ -58,11 +58,12 @@ if (!ENDPOINT || !API_KEY) {
 // ========================================
 // Create the OpenAI Client (same as Level 1)
 // ========================================
-// We use the generic OpenAI client pointed at Azure's v1-compatible endpoint.
+// We use the generic OpenAI client pointed at the Azure endpoint.
 const client = new OpenAI({
-  baseURL: `${ENDPOINT.replace(/\/+$/, "")}/openai/v1/`,
+  baseURL: ENDPOINT,
   apiKey: API_KEY,
   maxRetries: 10,
+  defaultQuery: { "api-version": "2025-04-01-preview" },
 });
 
 // --- NEW IN LEVEL 2 ---

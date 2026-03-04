@@ -39,9 +39,10 @@ if (!ENDPOINT || !API_KEY) {
 
 // --- Step 4: Create the OpenAI client ---
 const client = new OpenAI({
-    baseURL: `${ENDPOINT.replace(/\/+$/, "")}/openai/v1/`,
+    baseURL: ENDPOINT,
     apiKey: API_KEY,
     maxRetries: 10,
+    defaultQuery: { "api-version": "2025-04-01-preview" },
 });
 
 // --- Step 5: Print a welcome banner ---

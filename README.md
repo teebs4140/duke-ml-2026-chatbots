@@ -24,15 +24,15 @@ Each level has both **Python** and **TypeScript** implementations with identical
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
-cd duke-ml-chatbot
+git clone https://github.com/teebs4140/duke-ml-2026-chatbots.git
+cd duke-ml-2026-chatbots
 ```
 
 ### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
-# Edit .env with your Azure AI Foundry credentials
+nano .env   # Or use vim, or JupyterLab's text editor
 ```
 
 ### 3. Create a virtual environment and install dependencies
@@ -82,10 +82,10 @@ If you're running this inside a JupyterHub container:
 1. **Open a Terminal** from the JupyterHub launcher
 2. **Clone and configure:**
    ```bash
-   git clone <repo-url>
-   cd duke-ml-chatbot
+   git clone https://github.com/teebs4140/duke-ml-2026-chatbots.git
+   cd duke-ml-2026-chatbots
    cp .env.example .env
-   # Edit .env with your credentials (use nano, vim, or JupyterLab's text editor)
+   nano .env   # Or use vim, or JupyterLab's text editor
    ```
 3. **Create a virtual environment and install deps:**
    ```bash

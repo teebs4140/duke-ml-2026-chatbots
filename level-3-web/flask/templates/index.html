@@ -102,9 +102,6 @@
 </div>
 
 <!-- Our JavaScript (static/app.js) -- loaded at the end so the DOM is ready -->
-<script>
-    window.CHAT_API_TOKEN = {{ chat_api_token|tojson }};
-</script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 
 </body>

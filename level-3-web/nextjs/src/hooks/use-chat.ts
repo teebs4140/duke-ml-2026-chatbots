@@ -133,6 +133,13 @@ type StreamEvent =
   | StreamDoneEvent
   | StreamErrorEvent;
 
+interface StreamEventHandlers {
+  onDelta: (text: string) => void;
+  onUsage: (usage: TokenUsage) => void;
+  onDone: (responseId?: string) => void;
+  onError: (message?: string) => never;
+}
+
 function parseSseEventBlock(eventBlock: string): StreamEvent | null {
   const dataLines = eventBlock
     .split("\n")
@@ -152,6 +159,34 @@ function parseSseEventBlock(eventBlock: string): StreamEvent | null {
     return JSON.parse(payload) as StreamEvent;
   } catch {
     return null;
+  }
+}
+
+function handleStreamEvent(
+  data: StreamEvent,
+  handlers: StreamEventHandlers
+): void {
+  if (data.type === "delta") {
+    handlers.onDelta(data.text);
+    return;
+  }
+
+  if (data.type === "usage") {
+    handlers.onUsage({
+      inputTokens: data.inputTokens,
+      outputTokens: data.outputTokens,
+      totalTokens: data.totalTokens,
+    });
+    return;
+  }
+
+  if (data.type === "done") {
+    handlers.onDone(data.responseId);
+    return;
+  }
+
+  if (data.type === "error") {
+    handlers.onError(data.message);
   }
 }
 
@@ -300,14 +335,9 @@ export function useChat(): UseChatReturn {
         }
 
         // --- Step 5: Send the request to our API route ---
-        const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (process.env.NEXT_PUBLIC_CHAT_API_TOKEN) {
-          headers["x-chat-token"] = process.env.NEXT_PUBLIC_CHAT_API_TOKEN;
-        }
-
         const response = await fetch("/api/chat", {
           method: "POST",
-          headers,
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
           signal: controller.signal,
         });
@@ -331,6 +361,30 @@ export function useChat(): UseChatReturn {
         const decoder = new TextDecoder();
         let accumulatedText = "";
         let sseBuffer = "";
+        const eventHandlers: StreamEventHandlers = {
+          onDelta: (textDelta) => {
+            accumulatedText += textDelta;
+            const newContent = accumulatedText;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? { ...msg, content: newContent }
+                  : msg
+              )
+            );
+          },
+          onUsage: (tokenUsage) => {
+            setUsage(tokenUsage);
+          },
+          onDone: (responseId) => {
+            if (responseId) {
+              setPreviousResponseId(responseId);
+            }
+          },
+          onError: (message) => {
+            throw new Error(message || "Streaming error");
+          },
+        };
 
         // Keep reading chunks until the stream is done
         while (true) {
@@ -352,20 +406,7 @@ export function useChat(): UseChatReturn {
 
               const data = parseSseEventBlock(rawEvent);
               if (!data) continue;
-
-              if (data.type === "done" && data.responseId) {
-                setPreviousResponseId(data.responseId);
-              }
-              if (data.type === "usage") {
-                setUsage({
-                  inputTokens: data.inputTokens,
-                  outputTokens: data.outputTokens,
-                  totalTokens: data.totalTokens,
-                });
-              }
-              if (data.type === "error") {
-                throw new Error(data.message || "Streaming error");
-              }
+              handleStreamEvent(data, eventHandlers);
             }
             break;
           }
@@ -384,46 +425,7 @@ export function useChat(): UseChatReturn {
 
             const data = parseSseEventBlock(rawEvent);
             if (!data) continue;
-
-            // Handle different event types
-            if (data.type === "delta") {
-              // --- Text Delta ---
-              // Append this chunk to our accumulated text
-              // and update the assistant message in state.
-              accumulatedText += data.text;
-
-              // Update the assistant message with new content.
-              // We use the functional form of setState to
-              // ensure we're always working with the latest state.
-              const newContent = accumulatedText;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessage.id
-                    ? { ...msg, content: newContent }
-                    : msg
-                )
-              );
-            } else if (data.type === "usage") {
-              // --- Token Usage ---
-              // The server sends usage stats so we can display them.
-              setUsage({
-                inputTokens: data.inputTokens,
-                outputTokens: data.outputTokens,
-                totalTokens: data.totalTokens,
-              });
-            } else if (data.type === "done") {
-              // --- Stream Complete ---
-              // Store the response ID for the next conversation turn.
-              // This is the magic of the Responses API - by sending
-              // this ID with the next request, the server knows our
-              // full conversation history.
-              if (data.responseId) {
-                setPreviousResponseId(data.responseId);
-              }
-            } else if (data.type === "error") {
-              // --- Server Error During Streaming ---
-              throw new Error(data.message || "Streaming error");
-            }
+            handleStreamEvent(data, eventHandlers);
           }
         }
       } catch (err) {

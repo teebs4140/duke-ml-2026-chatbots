@@ -68,29 +68,35 @@ const VALID_REASONING_EFFORTS = new Set<ReasoningEffort>([
   "high",
 ]);
 const DEFAULT_FILE_ONLY_MESSAGE = "Please analyze the attached file.";
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
-const MAX_FILE_SIZE_BYTES = readPositiveInt(
-  process.env.MAX_FILE_SIZE_BYTES,
-  20 * 1024 * 1024
-);
-const RATE_LIMIT_WINDOW_MS = readPositiveInt(
-  process.env.CHAT_RATE_LIMIT_WINDOW_MS,
-  60_000
-);
-const RATE_LIMIT_MAX = readPositiveInt(process.env.CHAT_RATE_LIMIT_MAX, 30);
-const CHAT_API_TOKEN = (process.env.CHAT_API_TOKEN || "").trim();
+const ENDPOINT = (process.env.AZURE_OPENAI_ENDPOINT || "").trim();
+const API_KEY = (process.env.AZURE_OPENAI_API_KEY || "").trim();
+const DEFAULT_MODEL = (process.env.MODEL_NAME || "gpt-5.2").trim() || "gpt-5.2";
 
-interface RateLimitEntry {
-  count: number;
-  windowStartMs: number;
-}
+const rawDefaultEffort = (process.env.REASONING_EFFORT || "low")
+  .trim()
+  .toLowerCase();
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = VALID_REASONING_EFFORTS.has(
+  rawDefaultEffort as ReasoningEffort
+)
+  ? (rawDefaultEffort as ReasoningEffort)
+  : "low";
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+const DEFAULT_INSTRUCTIONS =
+  (process.env.CHATBOT_INSTRUCTIONS ||
+    "You are a helpful assistant. Be concise and friendly.")
+    .trim() || "You are a helpful assistant. Be concise and friendly.";
 
-function readPositiveInt(value: string | undefined, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
-}
+const client =
+  ENDPOINT && API_KEY
+    ? new OpenAI({
+        baseURL: ENDPOINT,
+        apiKey: API_KEY,
+        maxRetries: 10,
+        defaultQuery: { "api-version": "2025-04-01-preview" },
+      })
+    : null;
 
 function jsonResponse(payload: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(payload), {
@@ -101,31 +107,6 @@ function jsonResponse(payload: Record<string, unknown>, status: number): Respons
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object";
-}
-
-function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const [first] = forwardedFor.split(",");
-    if (first?.trim()) {
-      return first.trim();
-    }
-  }
-
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
-}
-
-function isRateLimited(clientKey: string): boolean {
-  const nowMs = Date.now();
-  const existing = rateLimitStore.get(clientKey);
-
-  if (!existing || nowMs - existing.windowStartMs >= RATE_LIMIT_WINDOW_MS) {
-    rateLimitStore.set(clientKey, { count: 1, windowStartMs: nowMs });
-    return false;
-  }
-
-  existing.count += 1;
-  return existing.count > RATE_LIMIT_MAX;
 }
 
 function parseDataField(data: string): {
@@ -170,33 +151,9 @@ function estimateBase64DecodedBytes(base64Data: string): number {
 export async function POST(request: NextRequest) {
   try {
     // -------------------------------------------------------
-    // Step 0: Lightweight protection (optional auth + rate limit)
-    // -------------------------------------------------------
-    if (CHAT_API_TOKEN) {
-      const providedToken = request.headers.get("x-chat-token");
-      if (providedToken !== CHAT_API_TOKEN) {
-        return jsonResponse({ error: "Unauthorized" }, 401);
-      }
-    }
-
-    if (RATE_LIMIT_MAX > 0 && RATE_LIMIT_WINDOW_MS > 0) {
-      const clientIp = getClientIp(request);
-      if (isRateLimited(clientIp)) {
-        return jsonResponse(
-          { error: "Too many requests. Please try again in a minute." },
-          429
-        );
-      }
-    }
-
-    // -------------------------------------------------------
     // Step 1: Validate environment variables
     // -------------------------------------------------------
-    // These MUST be set in .env.local (never commit real values!)
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY;
-
-    if (!endpoint || !apiKey) {
+    if (!client) {
       return jsonResponse(
         {
           error:
@@ -230,10 +187,22 @@ export async function POST(request: NextRequest) {
       file: rawFile,
     } = typedBody;
 
+    const message = typeof rawMessage === "string" ? rawMessage.trim() : "";
+    const previousResponseId =
+      typeof rawPreviousResponseId === "string"
+        ? rawPreviousResponseId.trim() || undefined
+        : undefined;
+    const instructions =
+      typeof rawInstructions === "string" ? rawInstructions.trim() : "";
+    const model = typeof rawModel === "string" ? rawModel.trim() : "";
+
     if (rawMessage !== undefined && typeof rawMessage !== "string") {
       return jsonResponse({ error: "message must be a string" }, 400);
     }
-    if (rawPreviousResponseId !== undefined && typeof rawPreviousResponseId !== "string") {
+    if (
+      rawPreviousResponseId !== undefined &&
+      typeof rawPreviousResponseId !== "string"
+    ) {
       return jsonResponse({ error: "previousResponseId must be a string" }, 400);
     }
     if (rawInstructions !== undefined && typeof rawInstructions !== "string") {
@@ -242,21 +211,23 @@ export async function POST(request: NextRequest) {
     if (rawModel !== undefined && typeof rawModel !== "string") {
       return jsonResponse({ error: "model must be a string" }, 400);
     }
-    if (
-      rawReasoningEffort !== undefined &&
-      !VALID_REASONING_EFFORTS.has(rawReasoningEffort)
-    ) {
-      return jsonResponse(
-        { error: "reasoningEffort must be one of: low, medium, high" },
-        400
-      );
-    }
 
-    const message = (rawMessage || "").trim();
-    const previousResponseId = rawPreviousResponseId?.trim();
-    const instructions = rawInstructions?.trim();
-    const model = rawModel?.trim();
-    const reasoningEffort = rawReasoningEffort;
+    let effort = DEFAULT_REASONING_EFFORT;
+    if (rawReasoningEffort !== undefined) {
+      const normalizedEffort =
+        typeof rawReasoningEffort === "string"
+          ? rawReasoningEffort.trim().toLowerCase()
+          : "";
+
+      if (!VALID_REASONING_EFFORTS.has(normalizedEffort as ReasoningEffort)) {
+        return jsonResponse(
+          { error: "reasoningEffort must be one of: low, medium, high" },
+          400
+        );
+      }
+
+      effort = normalizedEffort as ReasoningEffort;
+    }
 
     let file:
       | {
@@ -310,48 +281,18 @@ export async function POST(request: NextRequest) {
     }
 
     // -------------------------------------------------------
-    // Step 3: Create the OpenAI client
+    // Step 3: Build the input payload
     // -------------------------------------------------------
-    // The OpenAI SDK works with Azure AI Foundry when you
-    // point the baseURL to your Azure endpoint + "/openai/v1/".
-    // This gives us the full power of the OpenAI SDK
-    // (streaming, types, etc.) while hitting Azure's servers.
-    const client = new OpenAI({
-      baseURL: `${endpoint.replace(/\/+$/, "")}/openai/v1/`,
-      apiKey: apiKey,
-      maxRetries: 10,
-    });
-
-    // -------------------------------------------------------
-    // Step 4: Build the input payload
-    // -------------------------------------------------------
-    // The Responses API accepts either:
-    //   - A simple string (just text)
-    //   - An array of content parts (text + images/files)
-    //
-    // If the user attached a file (like an image), we build
-    // a multi-part input. Otherwise, just send the string.
-
     let input: string | ResponseInput;
     const messageForModel = message || DEFAULT_FILE_ONLY_MESSAGE;
 
     if (file) {
-      // Multi-part input: combine the file with the user's text.
-      // The data comes as a base64 data URI from the frontend
-      // (e.g., "data:image/png;base64,iVBOR...").
-      // We strip the prefix to get raw base64 for the API.
       const base64Data = file.base64Data;
 
-      // The API handles different file types differently:
-      //   - Images: use "input_image" with a data URI
-      //   - PDFs:   use "input_file" with base64 data
-      //   - Text:   decode and include inline (API rejects text files via input_file)
       const isImage = file.mimeType.startsWith("image/");
       const isPdf = file.mimeType === "application/pdf";
       const fileDataUri = `data:${file.mimeType};base64,${base64Data}`;
 
-      // All file types must be wrapped in a {role: "user", content: [...]} message.
-      // The API expects input to be an array of message objects, not raw content items.
       if (isImage) {
         input = [
           {
@@ -380,50 +321,22 @@ export async function POST(request: NextRequest) {
           },
         ] as ResponseInput;
       } else {
-        // Text-based files: decode and include inline as text
         const fileContent = Buffer.from(base64Data, "base64").toString("utf-8");
         input = `[Attached file: ${file.name}]\n\n${fileContent}\n\n---\n\n${messageForModel}`;
       }
     } else {
-      // Simple text-only input
       input = message;
     }
 
     // -------------------------------------------------------
-    // Step 5: Determine model and reasoning settings
+    // Step 4: Determine model and instructions
     // -------------------------------------------------------
-    // Fall back to environment variables if the frontend
-    // didn't specify these values.
-    const modelName = model || process.env.MODEL_NAME || "gpt-5.2";
-    const rawEffort = (
-      reasoningEffort ||
-      process.env.REASONING_EFFORT ||
-      "low"
-    ).toLowerCase();
-    const effort: ReasoningEffort = VALID_REASONING_EFFORTS.has(
-      rawEffort as ReasoningEffort
-    )
-      ? (rawEffort as ReasoningEffort)
-      : "low";
-
-    // Use provided instructions, fall back to env var, then default
-    const systemInstructions =
-      instructions ||
-      process.env.CHATBOT_INSTRUCTIONS ||
-      "You are a helpful assistant. Be concise and friendly.";
+    const modelName = model || DEFAULT_MODEL;
+    const systemInstructions = instructions || DEFAULT_INSTRUCTIONS;
 
     // -------------------------------------------------------
-    // Step 6: Call the Responses API with streaming
+    // Step 5: Call the Responses API with streaming
     // -------------------------------------------------------
-    // This is the main API call. Key parameters:
-    //
-    //   model:                The deployment name in Azure
-    //   input:                The user's message (string or array)
-    //   instructions:         System prompt (personality/rules)
-    //   previous_response_id: Links to prior turn for multi-turn chat
-    //   reasoning:            Controls "thinking" depth
-    //   stream:               Enables token-by-token streaming
-    //
     const stream = await client.responses.create({
       model: modelName,
       input: input,
@@ -438,33 +351,16 @@ export async function POST(request: NextRequest) {
     });
 
     // -------------------------------------------------------
-    // Step 7: Convert the SDK stream to SSE for the frontend
+    // Step 6: Convert the SDK stream to SSE for the frontend
     // -------------------------------------------------------
-    // We create a ReadableStream that:
-    //   1. Iterates over SDK stream events
-    //   2. Extracts text deltas (partial tokens)
-    //   3. Formats them as SSE messages
-    //   4. Sends a final "done" event with the response ID
-    //
-    // The frontend reads this stream with fetch + getReader()
-    // and updates the UI as each chunk arrives.
-
     const encoder = new TextEncoder();
 
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          // The SDK gives us an async iterable of events.
-          // We only care about two event types:
-          //   - "response.output_text.delta" = a text chunk
-          //   - "response.completed" = the full response object
           let responseId = "";
 
           for await (const event of stream) {
-            // --- Text Delta Event ---
-            // Fired for each token/chunk of the response.
-            // We forward it immediately so the user sees
-            // the text appear progressively.
             if (event.type === "response.output_text.delta") {
               const sseMessage = `data: ${JSON.stringify({
                 type: "delta",
@@ -473,12 +369,8 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(sseMessage));
             }
 
-            // --- Response Completed Event ---
-            // Fired once when the full response is ready.
-            // We extract the response ID for conversation chaining.
             if (event.type === "response.completed") {
               responseId = event.response.id;
-              // Extract token usage from the completed response
               const usage = event.response.usage;
               if (usage) {
                 const usageMessage = `data: ${JSON.stringify({
@@ -492,19 +384,13 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Send the "done" event so the frontend knows
-          // the stream is complete and can store the responseId.
           const doneMessage = `data: ${JSON.stringify({
             type: "done",
             responseId: responseId,
           })}\n\n`;
           controller.enqueue(encoder.encode(doneMessage));
-
-          // Close the stream
           controller.close();
         } catch (streamError) {
-          // If something goes wrong during streaming,
-          // send an error event before closing.
           console.error("Stream error:", streamError);
 
           const errorMessage = `data: ${JSON.stringify({
@@ -521,12 +407,8 @@ export async function POST(request: NextRequest) {
     });
 
     // -------------------------------------------------------
-    // Step 8: Return the SSE response
+    // Step 7: Return the SSE response
     // -------------------------------------------------------
-    // These headers tell the browser:
-    //   - Content-Type: text/event-stream = this is an SSE stream
-    //   - Cache-Control: no-cache = don't cache the response
-    //   - Connection: keep-alive = keep the connection open
     return new Response(readableStream, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -536,11 +418,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    // -------------------------------------------------------
-    // Global Error Handler
-    // -------------------------------------------------------
-    // Catches any unhandled errors (JSON parse failures,
-    // network issues, SDK initialization errors, etc.)
     console.error("Chat API error:", error);
 
     return jsonResponse(
