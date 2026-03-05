@@ -17,6 +17,7 @@ Key concepts you'll learn:
 #   - openai   : The official OpenAI Python SDK (works with Azure AI Foundry)
 #   - dotenv   : Loads configuration from a .env file so we don't hard-code secrets
 #   - os/Path  : Standard library helpers for environment variables and file paths
+import json
 import os
 from pathlib import Path
 
@@ -60,6 +61,68 @@ client = OpenAI(
     api_key=API_KEY,
     max_retries=10,
 )
+
+def get_weather(location):
+    """Get real weather using Open-Meteo (free, no API key needed)."""
+    import httpx
+
+    # Step 1: Geocode the location name to lat/lon
+    # Open-Meteo's geocoder works best with just the city name (no state/country)
+    city_name = location.split(",")[0].strip()
+    geo = httpx.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={"name": city_name, "count": 1},
+    ).json()
+
+    if not geo.get("results"):
+        return json.dumps({"error": f"Could not find location: {location}"})
+
+    place = geo["results"][0]
+    lat, lon = place["latitude"], place["longitude"]
+    name = place.get("name", location)
+
+    # Step 2: Fetch current weather for those coordinates
+    weather = httpx.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m",
+            "temperature_unit": "fahrenheit",
+            "wind_speed_unit": "mph",
+        },
+    ).json()
+
+    current = weather["current"]
+    return json.dumps({
+        "location": name,
+        "temperature": f"{current['temperature_2m']}°F",
+        "humidity": f"{current['relative_humidity_2m']}%",
+        "wind_speed": f"{current['wind_speed_10m']} mph",
+        "weather_code": current["weather_code"],
+    })
+
+tools = [
+    {
+        "type": "function",
+        "name": "get_weather",
+        "description": "Get the current weather for a given location.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City name, e.g. 'Durham, NC'",
+                }
+            },
+            "required": ["location"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+]
+
+tool_mapping = {"get_weather": get_weather}
 
 # --- Step 5: Print a welcome banner ---
 # A friendly banner so the user knows the chatbot is ready and how to use it.
@@ -115,14 +178,38 @@ while True:
             instructions=INSTRUCTIONS,                # System-level instructions
             reasoning={"effort": REASONING_EFFORT},   # How hard the model thinks
             previous_response_id=previous_response_id,  # Conversation continuity
+            tools=tools,
         )
 
-        # 6e. Print the response and save the ID for next turn
+        # Handle tool calls — the model may call functions before giving a text answer
+        while True:
+            tool_outputs = []
+            for item in response.output:
+                if item.type == "function_call":
+                    args = json.loads(item.arguments)
+                    func = tool_mapping.get(item.name)
+                    result = func(**args) if func else f"Unknown tool: {item.name}"
+                    print(f"  [tool call: {item.name}({args}) → {result}]")
+                    tool_outputs.append({
+                        "type": "function_call_output",
+                        "call_id": item.call_id,
+                        "output": result,
+                    })
+
+            if not tool_outputs:
+                break  # No more tool calls — model is done
+
+            # Send tool results back using previous_response_id (server has full context)
+            response = client.responses.create(
+                model=MODEL,
+                input=tool_outputs,
+                previous_response_id=response.id,
+                tools=tools,
+            )
+
+        # Print the final text response
         print(f"\nAssistant: {response.output_text}")
 
-        # 6f. Show token usage so you can track context consumption
-        # The API returns usage stats on every response: how many tokens
-        # were used for input (your messages + history) and output (the reply).
         if response.usage:
             print(f"  [tokens: {response.usage.input_tokens} in, {response.usage.output_tokens} out, {response.usage.total_tokens} total]")
         print()
