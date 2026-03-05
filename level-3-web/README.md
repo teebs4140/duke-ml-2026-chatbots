@@ -1,7 +1,8 @@
 # Level 3: Web UI Chat
 
-Build a browser-based chat application with streaming responses, file uploads, and a settings panel. Two implementations:
+Build a browser-based chat application with streaming responses, file uploads, and a settings panel. Three implementations:
 
+- **Gradio** — Python-only, one file, works inside Jupyter containers (recommended for JupyterHub)
 - **Next.js** — React + shadcn/ui (modern full-stack framework)
 - **Flask** — Python + vanilla JavaScript (see the raw DOM manipulation)
 
@@ -15,7 +16,31 @@ Build a browser-based chat application with streaming responses, file uploads, a
 
 ## How to Run
 
-### Option A: Next.js (TypeScript + React)
+### Option A: Gradio (recommended for Jupyter containers)
+
+Gradio is the simplest option — a single Python file with no frontend code. When launched with `share=True`, it generates a public URL that works from anywhere, which makes it the best choice for JupyterHub containers where `localhost` ports aren't directly accessible.
+
+```bash
+# Make sure your virtual environment is activated first:
+source .venv/bin/activate
+
+cd level-3-web/gradio
+python app.py
+```
+
+Gradio will print two URLs:
+```
+* Running on local URL:  http://127.0.0.1:7860
+* Running on public URL: https://abc123def456.gradio.live
+```
+
+**Click the public URL** to open the chatbot in your browser. This works from JupyterHub, your laptop, or anywhere — no proxy configuration needed.
+
+> **Note:** The public URL expires after 72 hours. Just restart the script to get a new one.
+
+### Option B: Next.js (TypeScript + React)
+
+> **Jupyter users:** This does not work inside JupyterHub containers. Use Gradio (Option A) instead.
 
 ```bash
 cd level-3-web/nextjs
@@ -30,7 +55,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Option B: Flask (Python + vanilla JS)
+### Option C: Flask (Python + vanilla JS)
+
+> **Jupyter users:** This does not work inside JupyterHub containers. Use Gradio (Option A) instead.
 
 ```bash
 # Make sure your virtual environment is activated first:
@@ -43,55 +70,6 @@ python app.py
 > **Note:** If you haven't created the virtual environment yet, see the [Quick Setup](../README.md#quick-setup) in the root README.
 
 Open [http://localhost:5000](http://localhost:5000) in your browser.
-
----
-
-## Running in a Jupyter Container
-
-JupyterHub doesn't let you access `localhost` ports directly from your browser. Instead, you access them through JupyterHub's built-in proxy.
-
-### Flask (port 5000)
-
-1. Start the server from a JupyterHub terminal:
-   ```bash
-   cd duke-ml-chatbot/level-3-web/flask
-   python app.py
-   ```
-
-2. Open this URL in your browser (replace `<your-jupyter-url>` with your JupyterHub address):
-   ```
-   https://<your-jupyter-url>/proxy/5000/
-   ```
-
-   For example, if your JupyterHub is at `https://jupyter.example.com/user/jsmith/`, the URL would be:
-   ```
-   https://jupyter.example.com/user/jsmith/proxy/5000/
-   ```
-
-### Next.js (port 3000)
-
-1. Make sure Node.js is installed:
-   ```bash
-   conda install -y nodejs
-   ```
-
-2. Start the dev server:
-   ```bash
-   cd duke-ml-chatbot/level-3-web/nextjs
-   npm install
-   npm run dev
-   ```
-
-3. Access via the proxy:
-   ```
-   https://<your-jupyter-url>/proxy/3000/
-   ```
-
-### Troubleshooting Jupyter Proxy
-
-- **Blank page?** Make sure the server is actually running in the terminal. Check for error messages.
-- **Connection refused?** Wait a few seconds for the server to start, then refresh.
-- **API calls failing?** The proxy should forward all requests. If `/api/chat` fails, check that your `.env` file has valid credentials.
 
 ---
 
@@ -117,6 +95,11 @@ Browser                    Server                    Azure AI Foundry
 ```
 
 ### Key Files
+
+**Gradio:**
+| File | Purpose |
+|------|---------|
+| `gradio/app.py` | Everything — UI, API calls, streaming, file handling in one file |
 
 **Next.js:**
 | File | Purpose |

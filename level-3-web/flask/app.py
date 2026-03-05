@@ -90,7 +90,6 @@ client = (
         base_url=ENDPOINT,
         api_key=API_KEY,
         max_retries=10,
-        default_query={"api-version": "2025-04-01-preview"},
     )
     if ENDPOINT and API_KEY
     else None

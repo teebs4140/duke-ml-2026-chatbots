@@ -1,6 +1,12 @@
-# Level 1: Terminal Chatbot
+# Level 1: Simple Chatbot
 
-A simple terminal chatbot that connects to Azure AI Foundry. This is the foundation for everything that follows -- just you and an AI, chatting in the terminal.
+A simple chatbot that connects to Azure AI Foundry. This is the foundation for everything that follows -- just you and an AI, chatting in a loop. Available in three flavors:
+
+| Variant | Interface | File |
+|---------|-----------|------|
+| **Python** | Terminal | `python/chat.py` |
+| **TypeScript** | Terminal | `typescript/chat.ts` |
+| **Gradio** | Browser | `gradio/chat.py` |
 
 ## What You'll Learn
 
@@ -10,6 +16,7 @@ A simple terminal chatbot that connects to Azure AI Foundry. This is the foundat
 - **Reasoning effort** -- Controlling how much "thinking" the model does (low/medium/high)
 - **System instructions** -- Shaping the chatbot's personality and behavior
 - **Environment configuration** -- Keeping secrets out of your code with `.env` files
+- **Gradio basics** -- Building a browser chat UI with `gr.ChatInterface` (Gradio variant only)
 
 ## Prerequisites
 
@@ -48,9 +55,19 @@ npm install
 npm start
 ```
 
+### Gradio (Browser UI)
+
+The same chat loop, but in the browser instead of the terminal. Uses `gr.ChatInterface` for the simplest possible web chat.
+
+```bash
+python level-1-chat/gradio/chat.py
+```
+
+> This launches a Gradio app with `share=True`, giving you a public URL that works inside JupyterHub.
+
 ## Code Walkthrough
 
-Both the Python and TypeScript versions follow the same six steps:
+All three versions follow the same structure (Steps 1-4 are identical):
 
 ### Step 1 -- Import Libraries
 
@@ -102,6 +119,14 @@ response = client.responses.create(
 )
 ```
 
+### Gradio variant differences
+
+The Gradio version replaces Steps 5-6 with a browser UI:
+
+- **Step 5** -- A `respond()` function that sends the message to the API and returns the full response (no streaming, matching the terminal version)
+- **Step 6** -- `gr.ChatInterface` handles the chat display, text input, and history automatically. We just provide the respond function
+- **Step 7** -- `demo.launch(share=True)` starts the web server and generates a public URL
+
 ## Try This!
 
 1. **Change the personality** -- Edit `CHATBOT_INSTRUCTIONS` in your `.env` file. Try "You are a pirate" or "You are a Socratic tutor who only answers with questions."
@@ -112,4 +137,6 @@ response = client.responses.create(
 
 ## What's Next?
 
-In **Level 2**, we'll move this chatbot to the web with a Streamlit/Next.js UI and add streaming responses so you can see the AI "typing" in real time.
+- **Level 1B** adds streaming to the terminal versions so you can see the AI "typing" in real time.
+- **Level 2** adds file/image uploads so you can send documents to the AI.
+- **Level 3** builds full web UIs (Flask, Next.js, Gradio) with all the bells and whistles.

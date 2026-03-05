@@ -56,7 +56,6 @@ const client = new OpenAI({
     baseURL: ENDPOINT,
     apiKey: API_KEY,
     maxRetries: 10,
-    defaultQuery: { "api-version": "2025-04-01-preview" },
 });
 
 // --- Step 5: Print a welcome banner ---

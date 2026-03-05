@@ -59,7 +59,6 @@ client = OpenAI(
     base_url=ENDPOINT,
     api_key=API_KEY,
     max_retries=10,
-    default_query={"api-version": "2025-04-01-preview"},
 )
 
 # --- Step 5: Print a welcome banner ---

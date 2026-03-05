@@ -1,16 +1,16 @@
-# Level 1B: Terminal Chat with Streaming
+# Level 1B: Chat with Streaming
 
 This builds on Level 1 by adding **streaming** -- instead of waiting for the full response (which can take several seconds), tokens appear one by one as the AI generates them.
 
 ## What's New
 
-Only **3 lines** change from Level 1:
+Only **3 lines** change from Level 1 (terminal versions):
 
 1. **`stream=True`** in the API call
 2. **A `for` loop** that iterates over events as they arrive
 3. **`print(event.delta, end="", flush=True)`** to print each chunk immediately
 
-That's it! The rest of the code is identical.
+For the Gradio version, the change is even simpler: the `respond()` function becomes a **generator** (uses `yield` instead of `return`). Gradio detects this and streams automatically.
 
 ## How to Run
 
@@ -33,6 +33,16 @@ cd level-1-chat-streaming/typescript
 npm install
 npm run start
 ```
+
+### Gradio (Browser UI)
+
+The same streaming logic, but in the browser. The `respond()` function becomes a generator that yields partial text -- Gradio re-renders the chat on each yield.
+
+```bash
+python level-1-chat-streaming/gradio/chat.py
+```
+
+> This launches a Gradio app with `share=True`, giving you a public URL that works inside JupyterHub.
 
 ## The Key Change
 

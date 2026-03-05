@@ -9,7 +9,7 @@ A progressive tutorial for building AI chatbots with Azure AI Foundry. Start wit
 | **[1 - Chat](level-1-chat/)** | Terminal chatbot | OpenAI client, Responses API, conversation chaining, system instructions |
 | **[1B - Streaming](level-1-chat-streaming/)** | Terminal chat with streaming | `stream=True`, event iteration, delta events |
 | **[2 - Files](level-2-files/)** | Terminal chat + file upload | Base64 encoding, MIME types, multimodal input, file I/O |
-| **[3 - Web](level-3-web/)** | Browser-based chat UI | HTTP APIs, SSE streaming, React / vanilla JS, client-server architecture |
+| **[3 - Web](level-3-web/)** | Browser-based chat UI | HTTP APIs, SSE streaming, Gradio / React / vanilla JS, client-server architecture |
 
 Each level has both **Python** and **TypeScript** implementations with identical functionality.
 
@@ -97,7 +97,7 @@ If you're running this inside a JupyterHub container:
    ```bash
    conda install -y nodejs
    ```
-5. **For web UI levels (Level 3)**, see the [Level 3 README](level-3-web/README.md) for instructions on accessing web servers through JupyterHub's proxy.
+5. **For web UI levels (Level 3)**, use the **Gradio** option — it generates a public URL that bypasses JupyterHub's nginx proxy. The Flask and Next.js options do not work inside Jupyter containers. See the [Level 3 README](level-3-web/README.md) for details.
 
 ---
 
@@ -119,6 +119,7 @@ duke-ml-chatbot/
 │   ├── typescript/chat.ts
 │   └── sample-files/
 └── level-3-web/            # Web UI
+    ├── gradio/             # Gradio (recommended for Jupyter)
     ├── nextjs/             # Next.js + shadcn/ui
     └── flask/              # Flask + vanilla JS
 ```
