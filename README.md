@@ -28,6 +28,8 @@ git clone https://github.com/teebs4140/duke-ml-2026-chatbots.git
 cd duke-ml-2026-chatbots
 ```
 
+> **Already cloned?** Run `git pull` to get the latest updates.
+
 ### 2. Configure environment variables
 
 ```bash
@@ -98,6 +100,7 @@ If you're running this inside a JupyterHub container:
    conda install -y nodejs
    ```
 5. **For web UI levels (Level 3)**, use the **Gradio** option — it generates a public URL that bypasses JupyterHub's nginx proxy. The Flask and Next.js options do not work inside Jupyter containers. See the [Level 3 README](level-3-web/README.md) for details.
+6. **To preview `.md` files** (like the PRDs), open the file in JupyterLab, then right-click in the editor and select **"Show Markdown Preview"**.
 
 ---
 
