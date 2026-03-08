@@ -33,4 +33,7 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # plans
-plans/ 
+plans/
+
+# local scripts
+scripts/

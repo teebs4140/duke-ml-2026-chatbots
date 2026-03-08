@@ -6,8 +6,8 @@ A progressive tutorial for building AI chatbots with Azure AI Foundry. Start wit
 
 | Level | What You Build | New Concepts |
 |-------|---------------|-------------|
-| **[1 - Chat](level-1-chat/)** | Terminal chatbot | OpenAI client, Responses API, conversation chaining, system instructions |
-| **[1B - Streaming](level-1-chat-streaming/)** | Terminal chat with streaming | `stream=True`, event iteration, delta events |
+| **[1 - Chat](level-1-chat/)** | Terminal chatbot (+ Gradio option) | OpenAI client, Responses API, conversation chaining, system instructions |
+| **[1B - Streaming](level-1-chat-streaming/)** | Terminal chat with streaming (+ Gradio option) | `stream=True`, event iteration, delta events |
 | **[2 - Files](level-2-files/)** | Terminal chat + file upload | Base64 encoding, MIME types, multimodal input, file I/O |
 | **[3 - Web](level-3-web/)** | Browser-based chat UI | HTTP APIs, SSE streaming, Gradio / React / vanilla JS, client-server architecture |
 
@@ -108,12 +108,20 @@ duke-ml-chatbot/
 ├── .env.example            # Template for Azure credentials
 ├── pyproject.toml          # Python deps (for uv)
 ├── requirements.txt        # Python deps (for pip)
+├── PRDs/                   # Workshop exercise prompts (copy into Claude Code)
+│   ├── 01_example-prompts.md
+│   ├── 02_verbosity.md
+│   ├── 03_max-output-tokens.md
+│   ├── 04_truncation.md
+│   └── 05_tool-calling.md
 ├── level-1-chat/           # Simple terminal chatbot
 │   ├── python/chat.py
-│   └── typescript/chat.ts
+│   ├── typescript/chat.ts
+│   └── gradio/chat.py      # Browser UI via Gradio
 ├── level-1-chat-streaming/ # Same thing, but with streaming
 │   ├── python/chat.py
-│   └── typescript/chat.ts
+│   ├── typescript/chat.ts
+│   └── gradio/chat.py      # Streaming browser UI via Gradio
 ├── level-2-files/          # Terminal chat + file upload
 │   ├── python/chat.py
 │   ├── typescript/chat.ts
