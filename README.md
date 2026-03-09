@@ -54,7 +54,19 @@ source .venv/bin/activate
 
 ### 4. Start with Level 1
 
-**Python:**
+**Option A — Jupyter Notebook (recommended for learning):**
+
+Each level has a step-by-step notebook that walks you through the code cell by cell:
+
+| Level | Notebook |
+|-------|----------|
+| Level 1 — Chat | `level-1-chat/build-a-chatbot.ipynb` |
+| Level 1B — Streaming | `level-1-chat-streaming/build-a-streaming-chatbot.ipynb` |
+| Level 2 — File Upload | `level-2-files/build-a-file-upload-chatbot.ipynb` |
+
+Open one in JupyterLab and run the cells in order. (If you're not on JupyterHub, install Jupyter first: `pip install jupyterlab`)
+
+**Option B — Run the finished chatbot:**
 ```bash
 cd level-1-chat/python
 python chat.py
@@ -118,14 +130,17 @@ duke-ml-chatbot/
 │   ├── 04_truncation.md
 │   └── 05_tool-calling.md
 ├── level-1-chat/           # Simple terminal chatbot
+│   ├── build-a-chatbot.ipynb        # Step-by-step notebook
 │   ├── python/chat.py
 │   ├── typescript/chat.ts
 │   └── gradio/chat.py      # Browser UI via Gradio
 ├── level-1-chat-streaming/ # Same thing, but with streaming
+│   ├── build-a-streaming-chatbot.ipynb  # Step-by-step notebook
 │   ├── python/chat.py
 │   ├── typescript/chat.ts
 │   └── gradio/chat.py      # Streaming browser UI via Gradio
 ├── level-2-files/          # Terminal chat + file upload
+│   ├── build-a-file-upload-chatbot.ipynb  # Step-by-step notebook
 │   ├── python/chat.py
 │   ├── typescript/chat.ts
 │   └── sample-files/
