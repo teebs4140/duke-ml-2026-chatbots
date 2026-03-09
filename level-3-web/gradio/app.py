@@ -49,6 +49,7 @@ INSTRUCTIONS = os.getenv(
 )
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
 DEFAULT_FILE_ONLY_MESSAGE = "Please analyze the attached file."
+VALID_REASONING_EFFORTS = {"none", "low", "medium", "high"}
 
 # --- Step 3: Validate and create the OpenAI client ---
 if not ENDPOINT or not API_KEY:
@@ -175,6 +176,12 @@ def append_user_message(message, history):
     return updated_history
 
 
+def normalize_reasoning_effort(reasoning_effort: str | None) -> str:
+    """Map UI/env values to a valid reasoning mode."""
+    effort = (reasoning_effort or "").strip().lower()
+    return effort if effort in VALID_REASONING_EFFORTS else "low"
+
+
 def respond(message, history, prev_id, instructions, model, reasoning_effort):
     """Process a user message and stream the AI response.
 
@@ -184,7 +191,7 @@ def respond(message, history, prev_id, instructions, model, reasoning_effort):
         prev_id:  previous_response_id for conversation chaining (gr.State)
         instructions:  system prompt
         model:    model name
-        reasoning_effort:  "low", "medium", or "high"
+        reasoning_effort:  "none", "low", "medium", or "high"
 
     Yields:
         (history, prev_id) tuples as the response streams in.
@@ -198,6 +205,7 @@ def respond(message, history, prev_id, instructions, model, reasoning_effort):
         return
 
     history = list(history or [])
+    reasoning_effort = normalize_reasoning_effort(reasoning_effort)
 
     # Build the API input (handles text-only and multimodal)
     try:
@@ -309,8 +317,8 @@ with gr.Blocks(
             label="Model",
         )
         effort_input = gr.Dropdown(
-            choices=["low", "medium", "high"],
-            value=REASONING_EFFORT,
+            choices=["none", "low", "medium", "high"],
+            value=normalize_reasoning_effort(REASONING_EFFORT),
             label="Reasoning Effort",
         )
 
