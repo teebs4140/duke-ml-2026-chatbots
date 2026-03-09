@@ -63,6 +63,7 @@ Each level has a step-by-step notebook that walks you through the code cell by c
 | Level 1 — Chat | `level-1-chat/build-a-chatbot.ipynb` |
 | Level 1B — Streaming | `level-1-chat-streaming/build-a-streaming-chatbot.ipynb` |
 | Level 2 — File Upload | `level-2-files/build-a-file-upload-chatbot.ipynb` |
+| **Extend Your Chatbot** | `extend-your-chatbot.ipynb` — add verbosity, max tokens, truncation, and tool calling |
 
 Open one in JupyterLab and run the cells in order. (If you're not on JupyterHub, install Jupyter first: `pip install jupyterlab`)
 
@@ -123,7 +124,8 @@ duke-ml-chatbot/
 ├── .env.example            # Template for Azure credentials
 ├── pyproject.toml          # Python deps (for uv)
 ├── requirements.txt        # Python deps (for pip)
-├── PRDs/                   # Workshop exercise prompts (copy into Claude Code)
+├── extend-your-chatbot.ipynb  # Notebook: add verbosity, max tokens, truncation, tool calling
+├── PRDs/                   # Same exercises as above, for use with coding agents
 │   ├── 01_example-prompts.md
 │   ├── 02_verbosity.md
 │   ├── 03_max-output-tokens.md
