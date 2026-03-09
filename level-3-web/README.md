@@ -6,6 +6,8 @@ Build a browser-based chat application with streaming responses, file uploads, a
 - **Next.js** — React + shadcn/ui (modern full-stack framework)
 - **Flask** — Python + vanilla JavaScript (see the raw DOM manipulation)
 
+> **New here?** For a conceptual walkthrough of how the web UI works (no coding required), see [CONCEPTS.md](CONCEPTS.md).
+
 ## What You'll Learn
 
 - **HTTP APIs**: How a browser talks to a server via POST requests
