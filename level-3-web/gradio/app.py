@@ -142,6 +142,39 @@ def build_api_input(message: str, file_path: str | None) -> str | list:
 #   3. Yields updated history after each token (creating the typing effect)
 #   4. Saves the response ID for conversation chaining
 
+def extract_user_message(message: dict | None) -> tuple[str, str | None]:
+    """Return normalized text and the first uploaded file path."""
+    if not message:
+        return "", None
+
+    user_text = message.get("text", "").strip()
+    files = message.get("files", [])
+    file_path = files[0] if files else None
+    return user_text, file_path
+
+
+def clear_and_save_input(message):
+    """Clear and disable the input while the current response is streaming."""
+    return gr.update(value=None, interactive=False), message
+
+
+def append_user_message(message, history):
+    """Show the user's message in the chat before the model responds."""
+    user_text, file_path = extract_user_message(message)
+    if not user_text and not file_path:
+        return history
+
+    updated_history = list(history or [])
+    if file_path:
+        updated_history.append({"role": "user", "content": {"path": file_path}})
+        if user_text:
+            updated_history.append({"role": "user", "content": user_text})
+    else:
+        updated_history.append({"role": "user", "content": user_text})
+
+    return updated_history
+
+
 def respond(message, history, prev_id, instructions, model, reasoning_effort):
     """Process a user message and stream the AI response.
 
@@ -157,23 +190,14 @@ def respond(message, history, prev_id, instructions, model, reasoning_effort):
         (history, prev_id) tuples as the response streams in.
     """
     # Extract text and file from the multimodal input
-    user_text = message.get("text", "").strip()
-    files = message.get("files", [])
-    file_path = files[0] if files else None
+    user_text, file_path = extract_user_message(message)
 
     # Skip empty messages
     if not user_text and not file_path:
         yield history, prev_id
         return
 
-    # Add the user message to chat history for display
-    if file_path:
-        # Show the file in the chat, then the text (if any)
-        history.append({"role": "user", "content": {"path": file_path}})
-        if user_text:
-            history.append({"role": "user", "content": user_text})
-    else:
-        history.append({"role": "user", "content": user_text})
+    history = list(history or [])
 
     # Build the API input (handles text-only and multimodal)
     try:
@@ -230,7 +254,12 @@ def respond(message, history, prev_id, instructions, model, reasoning_effort):
 
 def clear_conversation():
     """Reset the chat history and previous_response_id."""
-    return [], None
+    return [], None, None
+
+
+def reset_chat_input(interactive: bool = True):
+    """Return a cleared multimodal textbox update."""
+    return gr.update(value=None, interactive=interactive)
 
 
 # --- Step 6: Build the Gradio UI ---
@@ -252,6 +281,7 @@ with gr.Blocks(
 
     # State to store the previous response ID (invisible, per-session)
     prev_response_id = gr.State(None)
+    pending_message = gr.State(None)
 
     # The chat display
     chatbot = gr.Chatbot(
@@ -293,20 +323,33 @@ with gr.Blocks(
     #   1. Call respond() which streams the AI response
     #   2. Re-enable the textbox when done
     chat_msg = chat_input.submit(
+        clear_and_save_input,
+        inputs=[chat_input],
+        outputs=[chat_input, pending_message],
+        queue=False,
+    ).then(
+        append_user_message,
+        inputs=[pending_message, chatbot],
+        outputs=[chatbot],
+        queue=False,
+    ).then(
         respond,
-        inputs=[chat_input, chatbot, prev_response_id,
+        inputs=[pending_message, chatbot, prev_response_id,
                 instructions_input, model_input, effort_input],
         outputs=[chatbot, prev_response_id],
     )
     chat_msg.then(
-        lambda: gr.MultimodalTextbox(interactive=True),
+        reset_chat_input,
         outputs=[chat_input],
     )
 
     # Clear button resets everything
     clear_btn.click(
         clear_conversation,
-        outputs=[chatbot, prev_response_id],
+        outputs=[chatbot, prev_response_id, pending_message],
+    ).then(
+        reset_chat_input,
+        outputs=[chat_input],
     )
 
 
