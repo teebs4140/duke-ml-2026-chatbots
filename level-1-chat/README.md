@@ -1,12 +1,14 @@
 # Level 1: Simple Chatbot
 
-A simple chatbot that connects to Azure AI Foundry. This is the foundation for everything that follows -- just you and an AI, chatting in a loop. Available in three flavors:
+A simple chatbot that connects to Azure AI Foundry. This is the foundation for everything that follows -- just you and an AI, chatting in a loop. The main examples come in three flavors:
 
 | Variant | Interface | File |
 |---------|-----------|------|
 | **Python** | Terminal | `python/chat.py` |
 | **TypeScript** | Terminal | `typescript/chat.ts` |
 | **Gradio** | Browser | `gradio/chat.py` |
+
+There is also a stripped-down Python variant at [chat_responses_only.py](/dcri/sasusers/home/dt132/AI-work/duke-ml-chatbot/level-1-chat/python/chat_responses_only.py) if you want the smallest possible multi-turn example built around a single `client.responses.create(...)` call.
 
 ## What You'll Learn
 
@@ -41,6 +43,22 @@ source .venv/bin/activate    # On Windows: .venv\Scripts\activate
 # Run the chatbot (from the project root)
 python level-1-chat/python/chat.py
 ```
+
+### Python: Minimal Responses-Only Version
+
+This version keeps only the essentials:
+
+- Loads `.env`
+- Creates the `OpenAI` client
+- Reads `CHATBOT_INSTRUCTIONS`
+- Chains turns with `previous_response_id`
+- Calls `client.responses.create(...)` inside the loop
+
+```bash
+python level-1-chat/python/chat_responses_only.py
+```
+
+Use this when you want the simplest possible example that still preserves conversation history and system instructions.
 
 > **Note:** If you haven't created the virtual environment yet, see the [Quick Setup](../README.md#quick-setup) in the root README.
 
@@ -118,6 +136,8 @@ response = client.responses.create(
     previous_response_id=previous_response_id,
 )
 ```
+
+If you want the same chaining behavior with less scaffolding, see [chat_responses_only.py](/dcri/sasusers/home/dt132/AI-work/duke-ml-chatbot/level-1-chat/python/chat_responses_only.py). That script keeps just `input`, `instructions`, `previous_response_id`, and the `responses.create(...)` call.
 
 ### Gradio variant differences
 
