@@ -82,7 +82,7 @@ INSTRUCTIONS = os.getenv(
 )
 
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
-VALID_REASONING_EFFORTS = {"low", "medium", "high"}
+VALID_REASONING_EFFORTS = {"none", "low", "medium", "high"}
 DEFAULT_FILE_ONLY_MESSAGE = "Please analyze the attached file."
 
 client = (
@@ -165,10 +165,10 @@ def chat():
     previous_response_id = previous_response_id.strip() if previous_response_id else None
     instructions = (instructions or "").strip() or INSTRUCTIONS
     model = (model or "").strip() or MODEL
-    reasoning_effort = (reasoning_effort or "low").strip().lower()
+    reasoning_effort = (reasoning_effort or REASONING_EFFORT).strip().lower()
 
     if reasoning_effort not in VALID_REASONING_EFFORTS:
-        return jsonify({"error": "reasoningEffort must be one of: low, medium, high"}), 400
+        return jsonify({"error": "reasoningEffort must be one of: none, low, medium, high"}), 400
 
     parsed_file: dict[str, str] | None = None
     if file_info is not None:
